@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Marshal: The Piracy Probe</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --primary-dark: #0056b3;
+            --secondary-color: #6c757d;
+            --secondary-dark: #5a6268;
+            --background-light: #e9ecef;
+            --background-dark: #f8f9fa;
+            --text-dark: #212529;
+            --text-light: #fff;
+            --container-bg: #ffffff;
+            --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--background-dark);
+            color: var(--text-dark);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 1.5rem;
+            transition: background-color 0.3s ease;
+        }
+        
+        #game-container {
+            background-color: var(--container-bg);
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            padding: 2.5rem;
+            width: 95%;
+            max-width: 650px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        #case-description {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+            min-height: 100px;
+            padding: 1rem;
+            background-color: var(--background-light);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+            transition: background-color 0.3s ease;
+        }
+
+        #choices-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        button {
+            padding: 1rem;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--primary-color);
+            color: var(--text-light);
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        button:hover:not(:disabled) {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+            box-shadow: none;
+        }
+        
+        #restart-button {
+            background-color: var(--secondary-color);
+            margin-top: 1.5rem;
+        }
+        
+        #restart-button:hover:not(:disabled) {
+            background-color: var(--secondary-dark);
+        }
+        
+        #feedback-container {
+            margin-top: 2rem;
+            padding: 1.2rem;
+            background-color: var(--background-light);
+            border-radius: 8px;
+            min-height: 60px;
+            border: 1px solid #dee2e6;
+            opacity: 0;
+            transform: scaleY(0);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        #feedback-container.show {
+            opacity: 1;
+            transform: scaleY(1);
+        }
+        
+        #feedback-text {
+            font-size: 1rem;
+            font-weight: 500;
+            line-height: 1.5;
+        }
+
+        .correct-feedback {
+            color: #28a745;
+            border: 2px solid #28a745;
+        }
+
+        .incorrect-feedback {
+            color: #dc3545;
+            border: 2px solid #dc3545;
+        }
+        
+        #score-container {
+            margin-top: 1.5rem;
+            font-weight: 700;
+            font-size: 1.3rem;
+            color: var(--primary-dark);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        #score {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            transition: transform 0.2s ease;
+        }
+        
+        #score.pulse {
+            animation: pulse-animation 0.5s ease;
+        }
+
+        @keyframes pulse-animation {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>Cyber Marshal: The Piracy Probe 👮‍♀️</h1>
+        <div id="case-scenario">
+            <p id="case-description">Requesting new case from command...</p>
+        </div>
+        <div id="choices-container"></div>
+        <div id="feedback-container"><p id="feedback-text"></p></div>
+        <div id="score-container"><p>Score: <span id="score">0</span></p></div>
+        <button id="restart-button">Restart Game</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const caseDescription = document.getElementById('case-description');
+            const choicesContainer = document.getElementById('choices-container');
+            const feedbackContainer = document.getElementById('feedback-container');
+            const feedbackText = document.getElementById('feedback-text');
+            const scoreDisplay = document.getElementById('score');
+            const restartButton = document.getElementById('restart-button');
+            
+            let currentScore = 0;
+            const API_KEY = 'AIzaSyD73U5GdwG_LubfcY5y_lPTZnOd6fnfIUk'; // IMPORTANT: Replace with your actual Gemini API key
+            const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
+
+            // --- Game Initialization ---
+            function startGame() {
+                currentScore = 0;
+                scoreDisplay.textContent = currentScore;
+                fetchNewCase();
+                feedbackContainer.classList.remove('show', 'correct-feedback', 'incorrect-feedback');
+            }
+            
+            // --- Event Listeners ---
+            restartButton.addEventListener('click', startGame);
+
+            // Function to fetch a new case from the Gemini API
+            async function fetchNewCase() {
+                caseDescription.textContent = "Generating a new piracy case scenario...";
+                choicesContainer.innerHTML = '';
+                feedbackText.textContent = '';
+                restartButton.style.display = 'none'; // Hide restart button while fetching
+                feedbackContainer.classList.remove('show', 'correct-feedback', 'incorrect-feedback');
+
+                const prompt = `
+                Create a single, realistic online piracy scenario for a Nigerian Copyright Commission officer.
+                The scenario must be returned as a valid JSON object only, with no other text before or after it.
+                The JSON object must have this exact structure:
+                {
+                  "description": "A short scenario description.",
+                  "choices": [
+                    { "text": "Choice 1", "isCorrect": boolean, "feedback": "Feedback for choice 1." },
+                    { "text": "Choice 2", "isCorrect": boolean, "feedback": "Feedback for choice 2." },
+                    { "text": "Choice 3", "isCorrect": boolean, "feedback": "Feedback for choice 3." }
+                  ]
+                }
+                One choice must be correct (isCorrect: true) and the others must be incorrect (isCorrect: false).
+                The feedback should explain why the choice is right or wrong from the perspective of Nigerian law and investigation best practices.`;
+
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }],
+                            generationConfig: { responseMimeType: "application/json" }
+                        })
+                    });
+
+                    if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+
+                    const data = await response.json();
+                    const caseData = JSON.parse(data.candidates[0].content.parts[0].text);
+                    loadCase(caseData);
+
+                } catch (error) {
+                    console.error("Error fetching case:", error);
+                    caseDescription.textContent = "Failed to load a new case. Please check the console for errors and ensure your API key is correct.";
+                } finally {
+                    restartButton.style.display = 'block'; // Show restart button again
+                }
+            }
+
+            // Function to load the case data into the UI
+            function loadCase(caseData) {
+                caseDescription.textContent = caseData.description;
+                choicesContainer.innerHTML = ''; 
+                feedbackText.textContent = ''; 
+
+                caseData.choices.forEach(choice => {
+                    const button = document.createElement('button');
+                    button.textContent = choice.text;
+                    button.addEventListener('click', () => handleChoice(choice));
+                    choicesContainer.appendChild(button);
+                });
+            }
+
+            // Function to handle the player's choice
+            function handleChoice(choice) {
+                if (choice.isCorrect) {
+                    currentScore += 10;
+                    scoreDisplay.textContent = currentScore;
+                    feedbackContainer.classList.add('correct-feedback');
+                    scoreDisplay.classList.add('pulse');
+                    scoreDisplay.addEventListener('animationend', () => scoreDisplay.classList.remove('pulse'), { once: true });
+                } else {
+                    feedbackContainer.classList.add('incorrect-feedback');
+                }
+                feedbackText.textContent = choice.feedback;
+                feedbackContainer.classList.add('show');
+                
+                const buttons = choicesContainer.querySelectorAll('button');
+                buttons.forEach(button => button.disabled = true);
+                
+                setTimeout(fetchNewCase, 4000);
+            }
+
+            // Start the game for the first time
+            startGame();
+        });
+    </script>
+</body>
+</html>
