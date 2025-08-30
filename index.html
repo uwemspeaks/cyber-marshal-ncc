@@ -166,18 +166,131 @@
             50% { transform: scale(1.1); }
             100% { transform: scale(1); }
         }
+
+        .separator {
+            width: 100%;
+            height: 1px;
+            background-color: #e0e0e0;
+            margin: 2rem 0;
+        }
+
+        #player-input-section, #leaderboard-section {
+            margin-top: 2rem;
+            text-align: left;
+        }
+
+        #player-input-section h2, #leaderboard-section h2 {
+            font-size: 1.5rem;
+            color: var(--primary-dark);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        #player-name {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        #set-player-name-button {
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        #leaderboard-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #leaderboard-list li {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #leaderboard-list li strong {
+            color: var(--primary-color);
+        }
+
+        /* NEW CSS for Tabs */
+        .tab-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--background-light);
+        }
+
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 1rem 1.5rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--secondary-color);
+            cursor: pointer;
+            transition: color 0.3s ease;
+            border-bottom: 2px solid transparent;
+            margin: 0 0.5rem;
+        }
+
+        .tab-button.active {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
     <div id="game-container">
         <h1>Cyber Marshal: The Piracy Probe 👮‍♀️</h1>
-        <div id="case-scenario">
-            <p id="case-description">Requesting new case from command...</p>
+
+        <div class="tab-container">
+            <button class="tab-button active" data-tab="game">Game</button>
+            <button class="tab-button" data-tab="leaderboard">Leaderboard</button>
         </div>
-        <div id="choices-container"></div>
-        <div id="feedback-container"><p id="feedback-text"></p></div>
-        <div id="score-container"><p>Score: <span id="score">0</span></p></div>
-        <button id="restart-button">Restart Game</button>
+
+        <div id="game-tab" class="tab-content active">
+            <div id="case-scenario">
+                <p id="case-description">Requesting new case from command...</p>
+            </div>
+            <div id="choices-container"></div>
+            <div id="feedback-container"><p id="feedback-text"></p></div>
+            <div id="score-container"><p>Score: <span id="score">0</span></p></div>
+            <button id="restart-button">Restart Game</button>
+
+            <div class="separator"></div>
+
+            <div id="player-input-section">
+                <h2>Start your mission, Marshal!</h2>
+                <input type="text" id="player-name" placeholder="Enter your name to begin..." />
+                <button id="set-player-name-button">Set Name</button>
+                <p id="name-feedback" style="margin-top: 1rem; font-style: italic;"></p>
+            </div>
+        </div>
+
+        <div id="leaderboard-tab" class="tab-content">
+            <div id="leaderboard-section">
+                <h2>Top Copyright Inspectors</h2>
+                <ul id="leaderboard-list">
+                    </ul>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -188,28 +301,79 @@
             const feedbackText = document.getElementById('feedback-text');
             const scoreDisplay = document.getElementById('score');
             const restartButton = document.getElementById('restart-button');
-            
+            const playerNameInput = document.getElementById('player-name');
+            const setPlayerNameButton = document.getElementById('set-player-name-button');
+            const nameFeedback = document.getElementById('name-feedback');
+            const leaderboardList = document.getElementById('leaderboard-list');
+
             let currentScore = 0;
+            let playerName = '';
             const API_KEY = 'AIzaSyD73U5GdwG_LubfcY5y_lPTZnOd6fnfIUk'; // IMPORTANT: Replace with your actual Gemini API key
             const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
+            
+            let leaderboard = JSON.parse(localStorage.getItem('leaderboard')) || [];
+
+            function saveLeaderboard() {
+                localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
+            }
+
+            function renderLeaderboard() {
+                leaderboardList.innerHTML = '';
+                leaderboard.sort((a, b) => b.score - a.score);
+                leaderboard.slice(0, 5).forEach(entry => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<strong>${entry.name}</strong> - ${entry.score} pts`;
+                    leaderboardList.appendChild(li);
+                });
+            }
 
             // --- Game Initialization ---
             function startGame() {
+                if (!playerName) {
+                    nameFeedback.textContent = "Please enter your name to start!";
+                    return;
+                }
                 currentScore = 0;
                 scoreDisplay.textContent = currentScore;
                 fetchNewCase();
                 feedbackContainer.classList.remove('show', 'correct-feedback', 'incorrect-feedback');
+                nameFeedback.textContent = '';
             }
             
             // --- Event Listeners ---
-            restartButton.addEventListener('click', startGame);
+            setPlayerNameButton.addEventListener('click', () => {
+                playerName = playerNameInput.value.trim();
+                if (playerName) {
+                    nameFeedback.textContent = `Welcome, Marshal ${playerName}! Your mission is ready.`;
+                    showTab('game'); // Switch to the game tab after setting the name
+                    startGame();
+                } else {
+                    nameFeedback.textContent = "Please enter a valid name.";
+                }
+            });
+
+            restartButton.addEventListener('click', () => {
+                if (currentScore > 0) {
+                    const existingEntryIndex = leaderboard.findIndex(entry => entry.name === playerName);
+                    if (existingEntryIndex > -1) {
+                        if (currentScore > leaderboard[existingEntryIndex].score) {
+                            leaderboard[existingEntryIndex].score = currentScore;
+                        }
+                    } else {
+                        leaderboard.push({ name: playerName, score: currentScore });
+                    }
+                    saveLeaderboard();
+                    renderLeaderboard();
+                }
+                startGame();
+            });
 
             // Function to fetch a new case from the Gemini API
             async function fetchNewCase() {
                 caseDescription.textContent = "Generating a new piracy case scenario...";
                 choicesContainer.innerHTML = '';
                 feedbackText.textContent = '';
-                restartButton.style.display = 'none'; // Hide restart button while fetching
+                restartButton.style.display = 'none';
                 feedbackContainer.classList.remove('show', 'correct-feedback', 'incorrect-feedback');
 
                 const prompt = `
@@ -247,7 +411,7 @@
                     console.error("Error fetching case:", error);
                     caseDescription.textContent = "Failed to load a new case. Please check the console for errors and ensure your API key is correct.";
                 } finally {
-                    restartButton.style.display = 'block'; // Show restart button again
+                    restartButton.style.display = 'block';
                 }
             }
 
@@ -282,8 +446,43 @@
                 const buttons = choicesContainer.querySelectorAll('button');
                 buttons.forEach(button => button.disabled = true);
                 
-                setTimeout(fetchNewCase, 4000);
+                // Instead of fetching a new case directly, show the next question button
+                setTimeout(() => {
+                    const nextQuestionButton = document.createElement('button');
+                    nextQuestionButton.textContent = "Next Mission";
+                    nextQuestionButton.id = "next-mission-button";
+                    nextQuestionButton.addEventListener('click', () => fetchNewCase());
+                    choicesContainer.appendChild(nextQuestionButton);
+                }, 4000);
             }
+
+            // --- Tab Logic ---
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            function showTab(tabId) {
+                tabContents.forEach(content => {
+                    content.classList.remove('active');
+                });
+                tabButtons.forEach(button => {
+                    button.classList.remove('active');
+                });
+
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+                document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+
+                // If switching to leaderboard, re-render it
+                if (tabId === 'leaderboard') {
+                    renderLeaderboard();
+                }
+            }
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tab = button.dataset.tab;
+                    showTab(tab);
+                });
+            });
 
             // Start the game for the first time
             startGame();
